@@ -1,27 +1,79 @@
 import { StatusBar } from 'expo-status-bar'
+import { useEffect } from 'react'
+import { useRouter } from 'expo-router'
 import { ImageBackground, Text, TouchableOpacity, View } from 'react-native'
+import { makeRedirectUri, useAuthRequest } from 'expo-auth-session'
+import { styled } from 'nativewind'
+import * as SecureStore from 'expo-secure-store'
 
 import {
+  useFonts,
   Roboto_400Regular,
   Roboto_700Bold,
-  useFonts,
 } from '@expo-google-fonts/roboto'
 
 import { BaiJamjuree_700Bold } from '@expo-google-fonts/bai-jamjuree'
 
-import { styled } from 'nativewind'
-import blurBg from './src/assets/bg-blur.png'
-import NLWLogo from './src/assets/nlw-spacetime-logo.svg'
-import Stripes from './src/assets/stripes.svg'
+import blurBg from '../src/assets/bg-blur.png'
+import Stripes from '../src/assets/stripes.svg'
+import NLWLogo from '../src/assets/nlw-spacetime-logo.svg'
+import { api } from '../src/lib/api'
+
+const discovery = {
+  authorizationEndpoint: 'https://github.com/login/oauth/authorize',
+  tokenEndpoint: 'https://github.com/login/oauth/access_token',
+  revocationEndpoint:
+    'https://github.com/settings/connections/applications/7228959d8782426745ca',
+}
 
 const StyledStripes = styled(Stripes)
 
 export default function App() {
+  const router = useRouter()
+
   const [hasLoadedFonts] = useFonts({
     Roboto_400Regular,
     Roboto_700Bold,
     BaiJamjuree_700Bold,
   })
+
+  const [, response, signInWithGithub] = useAuthRequest(
+    {
+      clientId: '7228959d8782426745ca',
+      scopes: ['identity'],
+      redirectUri: makeRedirectUri({
+        scheme: 'nlwspacetime',
+      }),
+    },
+    discovery,
+  )
+
+  async function handleGithubOAuthCode(code: string) {
+    const response = await api.post('/register', {
+      code,
+    })
+
+    const { token } = response.data
+
+    await SecureStore.setItemAsync('token', token)
+
+    router.push('/memories')
+  }
+
+  useEffect(() => {
+    // console.log(
+    //   'response',
+    //   makeRedirectUri({
+    //     scheme: 'nlwspacetime',
+    //   }),
+    // )
+
+    if (response?.type === 'success') {
+      const { code } = response.params
+
+      handleGithubOAuthCode(code)
+    }
+  }, [response])
 
   if (!hasLoadedFonts) {
     return null
@@ -51,6 +103,7 @@ export default function App() {
         <TouchableOpacity
           activeOpacity={0.7}
           className="rounded-full bg-green-500 px-5 py-2"
+          onPress={() => signInWithGithub()}
         >
           <Text className="font-alt text-sm uppercase text-black">
             Cadastrar lembrança
@@ -58,7 +111,7 @@ export default function App() {
         </TouchableOpacity>
       </View>
 
-      <Text className="text-small text-center font-body leading-relaxed text-gray-200">
+      <Text className="text-center font-body text-sm leading-relaxed text-gray-200">
         Feito com 💜 no NLW da Rocketseat
       </Text>
 
