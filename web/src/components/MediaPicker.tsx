@@ -25,6 +25,7 @@ export function MediaPicker() {
         id="media"
         className="invisible h-0 w-0"
         accept="image/*"
+        name="coverUrl"
       />
 
       {preview && (
